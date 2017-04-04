@@ -227,7 +227,7 @@ void setup(void) {
         t.every(1000 * 60, checkUpdate);
 
         // read sensors every 5 minutes
-        temperatureTimer.every(30*1000, readSensors);
+        temperatureTimer.every(60*1000, readSensors);
 
         client.setServer(MQTT_SERVER, 1883);
         delay(1000);

@@ -1,3 +1,5 @@
 .pioenvs
 .piolibdeps
 firmware.bin
+.clang_complete
+.gcc-flags.json
