@@ -218,7 +218,7 @@ void setup(void) {
         //WiFiManager
         //Local intialization. Once its business is done, there is no need to keep it around
         WiFiManager wifiManager;
-
+        wifiManager.setConnectTimeout(60);
         //tries to connect to last known settings
         if (!wifiManager.autoConnect("AutoConnectAP", "password")) {
                 Serial.println("failed to connect, we should reset as see if it connects");
@@ -250,7 +250,9 @@ void setup(void) {
 
 
 void loop(void) {
-        // update timer
-        t.update();
-        temperatureTimer.update();
+        readSensors();
+
+        int sleepTimeS = 60;
+        ESP.deepSleep(sleepTimeS * 1000000, WAKE_RF_DEFAULT);
+        delay(100);
 }
