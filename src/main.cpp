@@ -21,7 +21,7 @@ OneWire ds(4, 14);   // on pin 10 (a 4.7K resistor is necessary)
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-#define MQTT_SERVER "192.168.1.2"
+#define MQTT_SERVER "192.168.1.5"
 
 #include <ESP8266httpUpdate.h>
 #include "Timer.h"
@@ -127,10 +127,22 @@ bool readAllSensors() {
                 return false;
         }
 
+// http://www.cupidcontrols.com/2014/10/moteino-arduino-and-1wire-optimize-your-read-for-speed/
+        /*byte resbyte = 0x3F;
+           // Set configuration
+           ds.reset();
+           ds.select(addr);
+           ds.write(0x4E); // Write scratchpad
+           ds.write(0);    // TL
+           ds.write(0);    // TH
+           ds.write(resbyte); // Configuration Register
+
+           ds.write(0x48); // Copy Scratchpad*/
+
+
         ds.reset();
         ds.select(addr);
         ds.write(0x44, 1); // start conversion, with parasite power on at the end
-
         delay(1000); // maybe 750ms is enough, maybe not
         // we might do a ds.depower() here, but the reset will take care of it.
 
@@ -222,15 +234,18 @@ void setup(void) {
         Serial.println("local ip");
         Serial.println(WiFi.localIP());
 
+        client.setServer(MQTT_SERVER, 1883);
+
         checkUpdate();
         // check for software update every minute
         t.every(1000 * 60, checkUpdate);
 
-        // read sensors every 5 minutes
-        temperatureTimer.every(60*1000, readSensors);
 
-        client.setServer(MQTT_SERVER, 1883);
-        delay(1000);
+
+        readSensors();
+        // read sensors every 5 minutes
+        temperatureTimer.every(60*5000, readSensors);
+
 }
 
 
