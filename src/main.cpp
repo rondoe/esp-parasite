@@ -1,5 +1,5 @@
 #include "Arduino.h"
-#include <OneWire.h>
+#include "OneWire.h"
 
 
 
@@ -17,7 +17,8 @@
 // The DallasTemperature library can do all this work for you!
 // http://milesburton.com/Dallas_Temperature_Control_Library
 
-OneWire ds(4, 14);   // on pin 10 (a 4.7K resistor is necessary)
+// OneWire ds(4, 14);   // on pin 10 (a 4.7K resistor is necessary)
+OneWire ds(4);   // on pin 10 (a 4.7K resistor is necessary)
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -62,6 +63,7 @@ void reconnect() {
                 // Attempt to connect
                 if (client.connect(clientId.c_str())) {
                         Serial.println("connected to mqtt");
+                        client.subscribe("myhome/43/scan");
                 } else {
                         i++;
                         // Wait 5 seconds before retrying
@@ -87,7 +89,7 @@ bool readAllSensors() {
         byte addr[8];
         float celsius, fahrenheit;
 
-        if ( !ds.search(addr)) {
+        if ( ds.search(addr) != 1) {
                 Serial.println("No more addresses.");
                 Serial.println();
                 ds.reset_search();
@@ -201,8 +203,27 @@ bool readAllSensors() {
         client.publish(topic, result);
         idx++;
 
-        delay(1000);
         return false;
+}
+
+
+void search() {
+        byte addr[8];
+        reconnect();
+        client.publish("xxx/43", "start scanning");
+        ds.reset_search();
+        while(ds.search(addr) == 1) {
+                char mac[sizeof(addr)*3+1];
+                sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\0", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7]);
+
+                char topic[60];
+                sprintf(topic, "xxx/43/%s", mac);
+                client.publish(topic, "mac");
+                ds.select(addr);
+                delay(2000);
+        }
+        client.publish("xxx/43", "finished");
+
 }
 
 void readSensors() {
@@ -210,6 +231,9 @@ void readSensors() {
         while(!readAllSensors()) ;
 }
 
+void callback(char* topic, byte* payload, unsigned int length) {
+        search();
+}
 
 void setup(void) {
         Serial.begin(115200);
@@ -235,12 +259,11 @@ void setup(void) {
         Serial.println(WiFi.localIP());
 
         client.setServer(MQTT_SERVER, 1883);
+        client.setCallback(callback);
 
         checkUpdate();
         // check for software update every minute
         t.every(1000 * 60, checkUpdate);
-
-
 
         readSensors();
         // read sensors every 5 minutes
@@ -250,9 +273,15 @@ void setup(void) {
 
 
 void loop(void) {
-        readSensors();
+        temperatureTimer.update();
+        t.update();
+        if (!client.connected()) {
+                reconnect();
+        }
+        client.loop();
+        /*readSensors();
 
-        int sleepTimeS = 60;
-        ESP.deepSleep(sleepTimeS * 1000000, WAKE_RF_DEFAULT);
-        delay(100);
+           int sleepTimeS = 60;
+           ESP.deepSleep(sleepTimeS * 1000000, WAKE_RF_DEFAULT);
+           delay(100);*/
 }
